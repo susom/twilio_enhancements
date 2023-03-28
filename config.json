@@ -1,0 +1,92 @@
+{
+    "name": "Twilio Enhancements",
+
+    "namespace": "Stanford\\TwilioEnhancements",
+
+    "description": "This module will help with some Twilio stuff...",
+
+    "documentation": "README.md",
+
+    "framework-version": 12,
+
+    "authors": [
+        {
+            "name": "Andy Martin",
+            "email": "andy123@stanford.edu",
+            "institution": "Stanford"
+        }
+    ],
+
+    "enable-every-page-hooks-on-system-pages": false,
+    "links": {
+        "project": [
+
+        ],
+        "control-center": [
+
+        ]
+    },
+
+    "no-auth-pages": [
+
+    ],
+
+    "project-settings": [
+        {
+            "key": "opt-out-field",
+            "name": "<b>Opt-out Field</b><br>Select a field (must be formatted as DATETIME or plain text).  When someone opts out, the current timestamp will be saved to this field",
+            "required": true,
+            "type": "field-list"
+        },
+        {
+            "key": "opt-out-field-event-id",
+            "name": "<b>Opt-out Field Event</b><br>If project is longitudinal, please select the event containing the opt-out field",
+            "required": false,
+            "type": "event-list"
+        },
+        {
+            "key": "phone-field",
+            "name": "<b>Phone Field</b><br>Select the field that contains the record's phone number",
+            "required": true,
+            "type": "field-list"
+        },
+        {
+            "key": "phone-field-event-id",
+            "name": "<b>Phone Field Event</b><br>If project is longitudinal, please select the event containing the phone field above",
+            "required": false,
+            "type": "event-list"
+        },
+        {
+            "key": "email-notifications",
+            "name": "<b>Notification Email Address</b><br><i>(optional)</i> Enter your email address to receive a notifcation when a participant changes their opt-out status",
+            "required": false,
+            "type": "email"
+        },
+        {
+            "key": "enable-project-debug-logging",
+            "name": "<b>Enable Debug Logging</b><br><i>(optional)</i> Requires installation and configuration of emLogger",
+            "required": false,
+            "type": "checkbox"
+        }
+    ],
+
+    "system-settings": [
+        {
+            "key": "enable-system-debug-logging",
+            "name": "<b>Enable Debug Logging (system-wide)</b><i>(optional)</i> Requires installation and configuration of emLogger",
+            "required": false,
+            "type": "checkbox"
+        }
+    ],
+
+    "crons": [
+
+    ],
+
+    "compatibility": {
+        "php-version-min": "",
+        "php-version-max": "",
+        "redcap-version-min": "",
+        "redcap-version-max": ""
+    }
+}
