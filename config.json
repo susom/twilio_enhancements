@@ -3,7 +3,7 @@
 
     "namespace": "Stanford\\TwilioEnhancements",
 
-    "description": "This module will help with some Twilio stuff...",
+    "description": "A module to support Twilio enhancements.  Update REDCap when a participant opts-out using Twilio's advanced Opt-out management.",
 
     "documentation": "README.md",
 
@@ -13,6 +13,11 @@
         {
             "name": "Andy Martin",
             "email": "andy123@stanford.edu",
+            "institution": "Stanford"
+        },
+        {
+            "name": "Lee Ann Yasukawa",
+            "email": "yasukawa@stanford.edu",
             "institution": "Stanford"
         }
     ],
