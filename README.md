@@ -1,6 +1,6 @@
 # Twilio Enhancements
 
-We hope to add additional features to this module in the future, hence the generic name.  But, for starters we have:
+We hope to add additional features to this module in the near future, hence the generic name.  But, for starters we have:
 
 - Support of opt-out using Twilio Messaging Service
 

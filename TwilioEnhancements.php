@@ -23,8 +23,13 @@ class TwilioEnhancements extends AbstractExternalModule
     public function redcap_every_page_before_render(int $project_id=null)
     {
 
+        $this->emDebug("In redcap_every_page_before_render: ", $project_id,
+            Messaging::getIncomingRequestType(), $this->getProjectId(), PAGE, $_POST);
+
         if (PAGE == 'surveys/index.php' && $project_id = $this->getProjectId() &&
             Messaging::getIncomingRequestType() == Messaging::PROVIDER_TWILIO && isset($_POST['OptOutType'])) {
+
+            $this->emDebug("In Twilio Opt-Out processing");
 
             // get phone field/event and opt-out field/event in project
             $phone_field = $this->getProjectSetting('phone-field');
