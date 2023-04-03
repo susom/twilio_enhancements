@@ -20,7 +20,7 @@ class TwilioEnhancements extends AbstractExternalModule
     }
 
 
-    public function redcap_every_page_before_render($project_id)
+    public function redcap_every_page_before_render(int $project_id=null)
     {
 
         if (PAGE == 'surveys/index.php' && $project_id = $this->getProjectId() &&
