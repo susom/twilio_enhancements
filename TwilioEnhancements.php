@@ -7,7 +7,9 @@ require_once "emLoggerTrait.php";
 use ExternalModules\AbstractExternalModule;
 use Messaging;
 use GuzzleHttp;
+use GuzzleHttp\Exception\GuzzleException;
 use REDCap;
+use Exception;
 
 class TwilioEnhancements extends AbstractExternalModule
 {
@@ -23,13 +25,28 @@ class TwilioEnhancements extends AbstractExternalModule
     public function redcap_every_page_before_render(int $project_id=null)
     {
 
-        $this->emDebug("In redcap_every_page_before_render: ", $project_id,
-            Messaging::getIncomingRequestType(), $this->getProjectId(), PAGE, $_POST);
+        $this->emDebug("In redcap_every_page_before_render: ",
+            "  -- Incoming Project ID: " . $project_id,
+            "  -- Incoming Msg Type: " . Messaging::getIncomingRequestType(),
+            "  -- This project ID: " . $this->getProjectId(),
+            "  -- Page: " . PAGE,
+            "  -- Provider: " . Messaging::PROVIDER_TWILIO,
+            "  -- POST Params: ",  $_POST);
 
-        if (PAGE == 'surveys/index.php' && $project_id = $this->getProjectId() &&
-            Messaging::getIncomingRequestType() == Messaging::PROVIDER_TWILIO && isset($_POST['OptOutType'])) {
+        //if (PAGE == 'surveys/index.php' && $project_id = $this->getProjectId() &&
+        if (PAGE == 'surveys/index.php' &&
+                Messaging::getIncomingRequestType() == Messaging::PROVIDER_TWILIO && isset($_POST['OptOutType'])) {
 
-            $this->emDebug("In Twilio Opt-Out processing");
+            $this->emDebug("In Twilio Opt-Out processing for project id: " . $this->getProjectId());
+
+            if (is_null($this->getProjectId())) {
+                $project_id = $this->findProjectByToPhoneNum($_POST['To']);
+                if (empty($project_id)) {
+                    $this->emError("Cannot find the project ID based on the Twilio phone number of ". $_POST['To']);
+                    return;
+                }
+                $_GET['pid'] = $project_id;
+            }
 
             // get phone field/event and opt-out field/event in project
             $phone_field = $this->getProjectSetting('phone-field');
@@ -82,6 +99,7 @@ class TwilioEnhancements extends AbstractExternalModule
                     }
 
                 } else if ($email = $this->getProjectSetting('email-notifications')) {
+                    $this->emDebug("Successfully changed opt out status for record $record_id from project " . $this->getProjectId() . " with new status $opt_out_type");
                     REDCap::email($email,$project_contact_email,'Twilio Enhancements: Opt-Out Change SUCCESSFUL (#' . $record_id . ')',
                         "Record $record_id from project " . $this->getProjectId() . " received an opt-out status update to $opt_out_type");
                 }
@@ -89,6 +107,22 @@ class TwilioEnhancements extends AbstractExternalModule
         }
     }
 
+
+    private function findProjectByToPhoneNum($to_phone) {
+
+        $redcap_format = $this->formatNumber($to_phone, "digits");
+        $sql = "select project_id from redcap_projects where twilio_from_number = ?";
+
+        try {
+            $return = db_query($sql, $redcap_format)->fetch_object();
+            $project_id = $return->project_id;
+        } catch (\Exception $ex) {
+            $this->emError("DB Error: " . json_encode($ex));
+            $project_id = null;
+        }
+
+        return $project_id;
+    }
 
     /**
      * Retrieve the record(s) that contain this phone number so we can change the opt-out/opt-in status
@@ -150,7 +184,8 @@ class TwilioEnhancements extends AbstractExternalModule
             $res = $client->request('GET',
                 $proj_context_url,
                 [
-                    'synchronous' => true
+                    'synchronous' => true,
+                    'redcap_csrf_token' => $this->getCSRFToken()
                 ]
             );
             $return = json_decode($res->getBody()->getContents(), true);
@@ -158,7 +193,7 @@ class TwilioEnhancements extends AbstractExternalModule
 
             return [$return['pk_field'], $return['isLongitudinal'], $event_name];
 
-        } catch (\Exception $ex) {
+        } catch (GuzzleException $ex) {
             $this->emError("Exception throw when instantiating Guzzle with error: " . $ex->getMessage());
             return [null, null, null];
         }
