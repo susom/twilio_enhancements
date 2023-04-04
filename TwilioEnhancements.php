@@ -51,8 +51,10 @@ class TwilioEnhancements extends AbstractExternalModule
             // get phone field/event and opt-out field/event in project
             $phone_field = $this->getProjectSetting('phone-field');
             $phone_field_event_id = (int)$this->getProjectSetting('phone-field-event-id');
-            $out_out_field = $this->getProjectSetting('opt-out-field');
-            $out_out_field_event_id = $this->getProjectSetting('opt-out-field-event-id');
+            $opt_out_field = $this->getProjectSetting('opt-out-field');
+            $opt_out_field_event_id = $this->getProjectSetting('opt-out-field-event-id');
+            $opt_out_checkbox = $this->getProjectSetting('opt-out-checkbox');
+            $opt_out_checkbox_event_id = $this->getProjectSetting('opt-out-checkbox-event-id');
 
             // This is the number for the opt-out status change
             $from_number = $this->formatNumber($_POST['From'], "redcap");
@@ -61,8 +63,10 @@ class TwilioEnhancements extends AbstractExternalModule
             $opt_out_type = $_POST['OptOutType'];
             if ($opt_out_type == "START") {
                 $value = "";
+                $checkbox_value = 0;
             } elseif ($opt_out_type == "STOP") {
                 $value = date("Y-m-d H:i:s");
+                $checkbox_value = 1;
             } else {
                 // Shouldn't get here
                 $this->emError("Received OptOutType value of " . $opt_out_type, $_POST);
@@ -82,7 +86,11 @@ class TwilioEnhancements extends AbstractExternalModule
             global $project_contact_email;
             foreach ($q as $record_id => $eventInfo) {
                 // value must be either START or STOP
-                $data = [ $record_id => [$out_out_field_event_id => [ $out_out_field => $value ]]];
+                $data = [$record_id => [$opt_out_field_event_id => [$opt_out_field => $value]]];
+                if (!is_null($opt_out_checkbox)) {
+                    $data[$record_id][$opt_out_checkbox_event_id][$opt_out_checkbox . "___1"] = $checkbox_value;
+                }
+                $this->emDebug("Data to save: " . json_encode($data));
                 $param = [
                     "project_id" => $this->getProjectId(),
                     "overwriteBehavior" => "overwrite",

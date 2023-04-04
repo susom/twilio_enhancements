@@ -19,6 +19,7 @@ Without this module, when a participant opts-out of messages, the study team doe
 2. Enable the EM on your project
 3. Set the following parameters in the module configuration
    - Opt-out Field (and event) - if a participant opts-out, the timestamp of this change will be recorded in the field.  The field should be free-text or text as a datetime field - date only is not supported.  If a participant opts-back in, this field will be cleared.
+   - Opt-out Checkbox (and event) - if a participant opts-out, and the study would like a checkbox to be checked, select the checkbox field here. This field is optional and if a checkbox field is not needed, it does not need to be selected.  NOTE: It is assumed the coded value of the checkbox to be set is 1. So if the checkbox field is [opt_out], the value of 1 will be stored in opt_out___1.
    - Phone Field (and event) - this is the field in the project that corresponds to the phone number for the participant.  If the number is not unique in the project and a participant unsubscribes, all records with this field will be updated as unsubscribed.
    - Notification Email - this optional parameter will send an email each time a participant changes their opt-in/out status.
 

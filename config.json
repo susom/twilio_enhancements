@@ -50,6 +50,18 @@
             "type": "event-list"
         },
         {
+            "key": "opt-out-checkbox",
+            "name": "<b>Opt-out Checkbox</b><br>OPTIONAL: Select a checkbox field that will be checked when an opt-out is received and will be cleared when an opt-in is received. NOTE: This assumes the opt-out option is coded as 1.",
+            "required": false,
+            "type": "field-list"
+        },
+        {
+            "key": "opt-out-checkbox-event-id",
+            "name": "<b>Opt-out Checkbox Field Event</b><br>If project is longitudinal, please select the event containing the opt-out checkbox",
+            "required": false,
+            "type": "event-list"
+        },
+        {
             "key": "phone-field",
             "name": "<b>Phone Field</b><br>Select the field that contains the record's phone number",
             "required": true,
