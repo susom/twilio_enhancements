@@ -27,10 +27,9 @@ class TwilioEnhancements extends AbstractExternalModule
 
         $this->emDebug("In redcap_every_page_before_render: ",
             "  -- Incoming Project ID: " . $project_id,
-            "  -- Incoming Msg Type: " . Messaging::getIncomingRequestType(),
-            "  -- This project ID: " . $this->getProjectId(),
+            //"  -- Incoming Msg Type: " . Messaging::getIncomingRequestType(),
+            //"  -- This project ID: " . $this->getProjectId(),
             "  -- Page: " . PAGE,
-            "  -- Provider: " . Messaging::PROVIDER_TWILIO,
             "  -- POST Params: ",  $_POST);
 
         //if (PAGE == 'surveys/index.php' && $project_id = $this->getProjectId() &&
@@ -46,6 +45,10 @@ class TwilioEnhancements extends AbstractExternalModule
                     return;
                 }
                 $_GET['pid'] = $project_id;
+                if (empty($this->getProjectId())) {
+                    $this->emError("Cannot set the project ID from phone number. Project ID was found as $project_id and phone from POST is ". $_POST['To']);
+                    return;
+                }
             }
 
             // get phone field/event and opt-out field/event in project
