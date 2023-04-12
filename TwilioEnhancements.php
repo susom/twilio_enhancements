@@ -52,12 +52,12 @@ class TwilioEnhancements extends AbstractExternalModule
             }
 
             // get phone field/event and opt-out field/event in project
-            $phone_field = $this->getProjectSetting('phone-field');
-            $phone_field_event_id = (int)$this->getProjectSetting('phone-field-event-id');
-            $opt_out_field = $this->getProjectSetting('opt-out-field');
-            $opt_out_field_event_id = $this->getProjectSetting('opt-out-field-event-id');
-            $opt_out_checkbox = $this->getProjectSetting('opt-out-checkbox');
-            $opt_out_checkbox_event_id = $this->getProjectSetting('opt-out-checkbox-event-id');
+            $phone_field = $this->getProjectSetting('phone-field', $project_id);
+            $phone_field_event_id = (int)$this->getProjectSetting('phone-field-event-id', $project_id);
+            $opt_out_field = $this->getProjectSetting('opt-out-field', $project_id);
+            $opt_out_field_event_id = $this->getProjectSetting('opt-out-field-event-id', $project_id);
+            $opt_out_checkbox = $this->getProjectSetting('opt-out-checkbox', $project_id);
+            $opt_out_checkbox_event_id = $this->getProjectSetting('opt-out-checkbox-event-id', $project_id);
 
             // This is the number for the opt-out status change
             $from_number = $this->formatNumber($_POST['From'], "redcap");
@@ -104,12 +104,12 @@ class TwilioEnhancements extends AbstractExternalModule
                     $this->emError("There was an error setting the opt_out value", $param, $q);
 
                     // Even if there is an error, send a message that a person is changing their opt-out status
-                    if ($email = $this->getProjectSetting('email-notifications')) {
+                    if ($email = $this->getProjectSetting('email-notifications', $project_id)) {
                         REDCap::email($email,$project_contact_email,'Twilio Enhancements: Opt-Out Change ERROR (#' . $record_id . ')',
                             "Record $record_id from project " . $this->getProjectId() . " received an opt-out status update to $opt_out_type but REDCap could not save the new status");
                     }
 
-                } else if ($email = $this->getProjectSetting('email-notifications')) {
+                } else if ($email = $this->getProjectSetting('email-notifications', $project_id)) {
                     $this->emDebug("Successfully changed opt out status for record $record_id from project " . $this->getProjectId() . " with new status $opt_out_type");
                     REDCap::email($email,$project_contact_email,'Twilio Enhancements: Opt-Out Change SUCCESSFUL (#' . $record_id . ')',
                         "Record $record_id from project " . $this->getProjectId() . " received an opt-out status update to $opt_out_type");
