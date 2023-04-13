@@ -38,5 +38,5 @@ Now, when someone responds with a 'STOP' message, your REDCap project will recei
 Note: You should be able to apply this to an existing Twilio number used by REDCap with no ill-effect.  It does NOT change the sid or token and does not affect normal REDCap behavior.
 
 ### Future Plans
-- [ ] Automate parts of the Twilio subaccount creation process based on the Twilio survey
+- [ ] Automate parts of the Twilio sub-account creation process based on the Twilio survey
 - [ ] Add API calls to Twilio to retrieve billing and usage information from Twilio sub-accounts

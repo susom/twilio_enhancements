@@ -49,6 +49,8 @@ class TwilioEnhancements extends AbstractExternalModule
                     $this->emError("Cannot set the project ID from phone number. Project ID was found as $project_id and phone from POST is ". $_POST['To']);
                     return;
                 }
+            } else {
+                $project_id = $this->getProjectId();
             }
 
             // get phone field/event and opt-out field/event in project
