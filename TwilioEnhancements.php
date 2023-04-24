@@ -24,18 +24,13 @@ class TwilioEnhancements extends AbstractExternalModule
 
     public function redcap_every_page_before_render(int $project_id=null)
     {
-
-        $this->emDebug("In redcap_every_page_before_render: ",
-            "  -- Incoming Project ID: " . $project_id,
-            //"  -- Incoming Msg Type: " . Messaging::getIncomingRequestType(),
-            //"  -- This project ID: " . $this->getProjectId(),
-            "  -- Page: " . PAGE,
-            "  -- POST Params: ",  $_POST);
-
-        //if (PAGE == 'surveys/index.php' && $project_id = $this->getProjectId() &&
+        // Check to see if this is a survey page and this message is coming from Twilio with an OptOutType entry
+        // If all those three conditions are not met, skip processing
         if (PAGE == 'surveys/index.php' &&
                 Messaging::getIncomingRequestType() == Messaging::PROVIDER_TWILIO && isset($_POST['OptOutType'])) {
 
+            // Save current pid so we can replace before we leave
+            $old_pid = $_GET['pid'];
             $this->emDebug("In Twilio Opt-Out processing for project id: " . $this->getProjectId());
 
             if (is_null($this->getProjectId())) {
@@ -51,7 +46,10 @@ class TwilioEnhancements extends AbstractExternalModule
                 }
             } else {
                 $project_id = $this->getProjectId();
+                $_GET['pid'] = $project_id;
             }
+
+            $this->emDebug("Project ID before retrieving Project Settings: " . $project_id . ", getProjectId(): " . $this->getProjectId());
 
             // get phone field/event and opt-out field/event in project
             $phone_field = $this->getProjectSetting('phone-field', $project_id);
@@ -117,6 +115,9 @@ class TwilioEnhancements extends AbstractExternalModule
                         "Record $record_id from project " . $this->getProjectId() . " received an opt-out status update to $opt_out_type");
                 }
             }
+
+            // Replace whatever was in pid when it entered
+            $_GET['pid'] = $old_pid;
         }
     }
 

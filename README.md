@@ -2,7 +2,7 @@
 
 We hope to add additional features to this module in the near future, hence the generic name.  But, for starters we have:
 
-- Support of opt-out using Twilio Messaging Service
+- Support of opt-out using Twilio Messaging Service when Advanced Opt-Out is Enabled
 
 
 
