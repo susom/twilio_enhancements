@@ -63,6 +63,7 @@ class TwilioEnhancements extends AbstractExternalModule
 
             // This is the number for the opt-out status change
             $from_number = $this->formatNumber($_POST['From'], "redcap");
+            $from_number_dashes = $this->formatNumber($_POST['From'], "dashes");
 
             // Either save the date (opt-out) or clear the date (opt-in)
             $opt_out_type = $_POST['OptOutType'];
@@ -85,7 +86,7 @@ class TwilioEnhancements extends AbstractExternalModule
 
             // Retrieve the records with this opt-out/opt-in phone number
             $q = $this->retrieveRecords($record_id_field, $is_longitudinal, $event_name,
-                                        $phone_field, $phone_field_event_id, $from_number);
+                                        $phone_field, $phone_field_event_id, $from_number, $from_number_dashes);
 
             // Save the opt-out/opt-in status for each record and conditionally send email
             global $project_contact_email;
@@ -95,7 +96,6 @@ class TwilioEnhancements extends AbstractExternalModule
                 if (!is_null($opt_out_checkbox)) {
                     $data[$record_id][$opt_out_checkbox_event_id][$opt_out_checkbox . "___1"] = $checkbox_value;
                 }
-                $this->emDebug("Data to save: " . json_encode($data));
                 $param = [
                     "project_id" => $this->getProjectId(),
                     "overwriteBehavior" => "overwrite",
@@ -154,15 +154,17 @@ class TwilioEnhancements extends AbstractExternalModule
      * @return mixed|null
      */
     private function retrieveRecords($record_id_field, $is_longitudinal, $event_name,
-                                     $phone_field, $phone_field_event_id, $from_number) {
+                                     $phone_field, $phone_field_event_id, $from_number, $from_number_dashes) {
 
         // If this is longitudinal, append event name to retrieve the phone number field
         $event_prefix = $is_longitudinal ? "[" . $event_name . "]" : "";
         $param = [
             "project_id" => $this->getProjectId(),
             "fields" => ["$record_id_field"],
-            "filterLogic" => $event_prefix . "[" . $phone_field . "] = '$from_number'"
+            "filterLogic" => $event_prefix . "[" . $phone_field . "] = '$from_number' or " .
+                             $event_prefix . "[" . $phone_field . "] = '$from_number_dashes'"
         ];
+
         if ($is_longitudinal) {
             $param["events"] = $phone_field_event_id;
         }
@@ -175,7 +177,7 @@ class TwilioEnhancements extends AbstractExternalModule
             return null;
         } elseif ($record_count > 1) {
             // More than one hit - just taking first
-            $this->emDebug("More than one record was found with $from_number, just using the first: " . implode(",",array_keys($q)));
+            $this->emDebug("More than one record was found with $from_number, setting them all to opt-out: " . implode(",",array_keys($q)));
             REDCap::logEvent(
                 "Multiple possible matches for inbound opt-in/opt-out - will opt-out/opt-in ALL of them",
                 "Record list: " . implode(",",array_keys($q)),
@@ -248,6 +250,15 @@ class TwilioEnhancements extends AbstractExternalModule
                 // TODO: ANDY? in redcap_data it's stored as 6503803405
                 $output = "(" . mid($digits, 1, 3) . ") " . mid($digits, 4, 3) . "-" . mid($digits, 7, 4);
                 //$output = $digits;
+            }
+        } elseif ($type == "dashes") {
+            if (strlen($digits) === 11 && left($digits, 1,) == "1") {
+                // 16503803405 => 6503803405
+                $digits = mid($digits, 2, 10);
+            }
+            if (strlen($digits) === 10) {
+                // 6503803405 => 650-380-3405
+                $output = mid($digits, 1, 3) . "-" . mid($digits, 4, 3) . "-" . mid($digits, 7, 4);
             }
         } elseif ($type == "digits") {
             $output = $digits;
