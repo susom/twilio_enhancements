@@ -268,20 +268,243 @@ class TwilioEnhancements extends AbstractExternalModule
         return strval($output);
     }
 
-/*
-    public function redcap_every_page_top(int $project_id)
-    {
-        $this->emDebug("2");
-        $this->emDebug("This is POST: " . json_encode($_POST));
+    /**
+     * CRON JOBS
+     * These are cron jobs that run to help with Twilio Administration.
+     *
+     *      1. campaignStatusManager - runs every 12 hours - checks the Twilio Tracker project to see which campaigns are not yet approved
+     *          and checks to see the current status of the campaign.  If the campaign is approved or rejected, the Twilio Tracker
+     *          status will be updated and alerts can be setup to notify the Jira RSSD project that a campaign status has changed
+     *      2. deleteSubAccountManager - runs once a week - deletes any Twilio subaccount that starts with "DELETE_"
+     *      3. financeManager - runs once a month - retrieves the monthly charges for each Twilio subaccount and updates the Twilio Tracker record.
+     *
+     */
 
+    /**
+     * This function will be called by the cron job or can be invoked by the System Page TwilioAdmin.php
+     * This function will retrieve all Twilio records in the Twilio Tracker project that have the Campaign
+     * status of InProgress and use the API call to retrieve the current status from Twilio.  If the
+     * Campaign was Approved or Rejected, the Twilio Tracker record status will be updated and email will
+     * be sent to the Jira.
+     *
+     * @return void
+     */
+    public function twilioCampaignStatusManager() {
+
+        // Email address to send notification to the Jira support queue
+        $to_email = "redcap-help@lists.stanford.edu";
+        $from_email = "no-reply@stanford.edu";
+
+        // Values of the [campaign_status] field in Twilio Tracker
+        $verified_status = 1;
+        $inprogress_status = 2;
+        $rejected_status = 4;
+
+        // Special SID that Twilio uses to check for Campaign statuses
+        $checkCampaignStatusSID = "QE2c6890da8086d771620e9b13fadeba0b";
+
+        // Retrieve pid of twilio tracker project
+        $project_id = $this->getSystemSetting("twilio-tracker-pid");
+        if (empty($project_id)) return;
+        $fieldsToRetrieve = ["record_id", "twilio_acct_sid", "twilio_auth_token", "twilio_campaign_sid"];
+        $filter = "[campaign_status]='$inprogress_status'";
+
+        // Retrieve REDCap records in Twilio Tracker project where the [campaign_status] field is 'In Progress'
+        // Campaign submitted but not yet verified (radio=2)
+        $return = $this->getREDCapRecordsToProcess($project_id, $fieldsToRetrieve, $filter);
+
+        // If there are Twilio subaccounts waiting for Campaign verification, see if the status was updated
+        if (!empty($return)) {
+
+            // Loop over each record and retrieve status from Twilio
+            $updateRedcap = [];
+            foreach($return as $oneRecord) {
+
+                $url = "https://messaging.twilio.com/v1/Services/" . $oneRecord["twilio_campaign_sid"] . "/Compliance/Usa2p/" . $checkCampaignStatusSID;
+                $basic_auth_user = $oneRecord["twilio_acct_sid"] . ":" . $oneRecord["twilio_auth_token"];
+                $response = http_get($url, null, $basic_auth_user, null, null);
+                if ($response !== false) {
+                    $return = json_decode($response, true);
+                    $this->emDebug("Record " . $oneRecord['record_id'] . " has status of " . $return['campaign_status']);
+
+                    // If the Campaign status was verified, update the REDCap Twilio Tracker project
+                    // and send an email to the Jira queue
+                    if ($return['campaign_status'] == "VERIFIED") {
+                        $updateRecord = [
+                            "record_id"             => $oneRecord["record_id"],
+                            "campaign_status"       => "$verified_status",
+                            "campaign_verified"     => "1",
+                            "last_checked"          => DATE("Y-m-d")
+                            ];
+                        $updateRedcap[] = $updateRecord;
+                        $status = REDCap::email($to_email, $from_email, "Twilio campaign has been VERIFIED!",
+                                    "Twilio campaign was VERIFIED for Twilio Tracker record " . $oneRecord["record_id"]
+                        );
+                    } else if ($return['campaign_status'] == 'FAILED') {
+
+                        // If the campaign was rejected, update Twilio Tracker and send email to the Jira queue
+                        $updateRecord = [
+                            "record_id"             => $oneRecord["record_id"],
+                            "campaign_status"       => "$rejected_status",
+                            "campaign_verified"     => "0",
+                            "last_checked"          => DATE("Y-m-d")
+                        ];
+                        $updateRedcap[] = $updateRecord;
+                        $status = REDCap::email($to_email, $from_email, "Twilio campaign has been REJECTED!",
+                            "Twilio campaign was REJECTED for Twilio Tracker record " . $oneRecord["record_id"]);
+                    }
+                }
+            }
+
+            // Save any updated statuses in REDCap
+            if (!empty($updateRedcap)) {
+                $status = REDCap::saveData($project_id, 'json', json_encode($updateRedcap));
+                if (!empty($status["errors"])) {
+                    $this->emError("Could not update REDCap with current status: " . json_encode($status));
+                    $status = REDCap::email($to_email, $from_email, "Could not update Twilio Tracker project",
+                        "Tried to update the Twilio Tracker project [pid=" . $project_id .
+                        "] with updated Campaign Status but ran into an " .
+                        "error.  Look at Splunk log for more information");
+                }
+            }
+        }
     }
 
+    /**
+     * This function will run on a cron every two weeks or can be invoked using the System EM page
+     * TwilioAdmin.php.  This function will retrieve Twilio costs for each subaccount and update the
+     * REDCap project Twilio Tracker.  This API call always queries for charges during "LastMonth"
+     * so it lags by a month.
+     *
+     * @return void
+     * @throws Exception
+     */
+    public function twilioFinanceManager() {
+        /**
+             Each category for billing needs a separate API call.  Right now, we will retrieve
+              * totalcost - all messaging and phone costs (does not include campaign fee)
+              * sms - messaging count for both incoming and outgoing
+              * mms - messaging count for both incoming and outgoing
+              * campaign charge - monthly fee for an approved campaign
+         */
+        $categories = [
+                "twilio_charge_amount"      => "totalprice",
+                "twilio_sms_num_texts"      => "sms",
+                "twilio_mms_num_texts"      => "mms",
+                "twilio_campaign_amount"    => "a2p-registration-fees"
+        ];
 
-    public function redcap_survey_page_top(int $project_id, $record, string $instrument, int $event_id, $group_id, string $survey_hash, $response_id, $repeat_instance)
-    {
-        $this->emDebug("3");
-        $this->emDebug("This is POST: " . json_encode($_POST));
+        // Retrieve pid of twilio tracker project
+        $twilio_uri = $this->getSystemSetting("twilio-uri");
+        $project_id = $this->getSystemSetting("twilio-tracker-pid");
+        if (empty($project_id)) return;
+        $fieldsToRetrieve = ["record_id", "twilio_acct_sid", "twilio_auth_token"];
+        $filter = "[twilio_acct_sid]<> '' and [twilio_auth_token]<> '' and [twilio_end_date] = '' ";
+
+        // Retrieve REDCap records in Twilio Tracker project where the SID and Auth Token are not blank
+        $records = $this->getREDCapRecordsToProcess($project_id, $fieldsToRetrieve, $filter);
+        //$this->emDebug("Records: ", $records);
+        if (!empty($records)) {
+
+            // Determine what the instance ID will be.  Just to make it easier, I'm going to set
+            // instance_id to 1 for 01-01-2023 and then increment from there for each month.  Newer
+            // records will not start with instance_id = 1.
+            $instance_id = $this->calcInstanceId();
+
+            // Look over each record which can be an account or subaccount
+            $redcapCharges = [];
+            foreach ($records as $oneRecord) {
+
+                // We are always querying for last month
+                $twilio_url = $twilio_uri . "/Accounts/" . $oneRecord['twilio_acct_sid'].
+                    "/Usage/Records/LastMonth?Category=";
+                //$twilio_url = $twilio_uri . "/Accounts/" . $oneRecord['twilio_acct_sid'].
+                //    "/Usage/Records?StartDate=".$start_date."&EndDate=".$end_date."&Category=";
+                $basic_auth_user = $oneRecord["twilio_acct_sid"] . ":" . $oneRecord["twilio_auth_token"];
+
+                $recordCharges = [];
+                foreach ($categories as $field_name => $cat) {
+                    $cat_url = $twilio_url . $cat;
+                    $response = http_get($cat_url, null, $basic_auth_user, null, null);
+                    $twilio_response = new \SimpleXMLElement($response);
+                    //$this->emDebug("Billing info for record " . $oneRecord['record_id'] , " return: ", $response);
+                    if ($cat == "sms" or $cat == "mms") {
+                        $recordCharges[$field_name] = current($twilio_response->UsageRecords->UsageRecord[0]->Count);
+                    } else {
+                        $recordCharges[$field_name] = current($twilio_response->UsageRecords->UsageRecord[0]->Price);
+                    }
+
+                    $recordCharges["twilio_charge_date"] = current($twilio_response->UsageRecords->UsageRecord[0]->StartDate);
+                    $this->emDebug("For category $cat, price/count is $recordCharges[$field_name] for month starting date of "
+                                . $recordCharges["twilio_charge_date"] . " for record " . $oneRecord['record_id']);
+                }
+
+                // Only save this month if there were some charges
+                if ($recordCharges['twilio_charge_amount'] <> 0
+                        or $recordCharges['twilio_campaign_amount'] <> 0) {
+                    $recordCharges['record_id'] = $oneRecord['record_id'];
+                    $recordCharges['redcap_repeat_instance'] = $instance_id;
+                    $recordCharges['redcap_repeat_instrument'] = 'charges';
+                    $recordCharges['charges_complete'] = 1;
+                    $redcapCharges[] = $recordCharges;
+                }
+            }
+        }
+
+        // Save charge data in REDCap
+        if (!empty($redcapCharges)) {
+            $status = REDCap::saveData($project_id, 'json', json_encode($redcapCharges));
+            if (!empty($status["errors"])) {
+                $this->emError("Could not update REDCap with current finance status: " . json_encode($status));
+            }
+        }
     }
-*/
 
+    /**
+     * Retrieve the list of records to process based on the filter criteria. Returns a json array
+     * of records with the fields specified in the $fields array.
+     *
+     * @param $project_id
+     * @param $fields
+     * @param $filter
+     * @return mixed
+     */
+    private function getREDCapRecordsToProcess($project_id, $fields, $filter) {
+
+        $params = [
+            "project_id"        => $project_id,
+            "return_format"     => "json",
+            "fields"            => $fields,
+            "filterLogic"       => $filter
+        ];
+        $return = REDCap::getData($params);
+        if (empty($return)) {
+            $this->emError("Error retrieve REDCap data for project $project_id with parameters: ", $params);
+        }
+        $json_return = json_decode($return, true);
+
+        return $json_return;
+    }
+
+    /**
+     * This function will calculate an instance ID for REDCap.  Since it is a lot of overhead to determine
+     * the instance ID for each record, we will make each month the same instance ID for all records.  So
+     * Jan 2023 will always be instance 1, Feb 2023 will always be instance 2, etc. Reports can be made for
+     * instance 6 entries for all charges in June 2023.
+     *
+     * @param $start_date
+     * @return float|int
+     */
+    private function calcInstanceId() {
+
+        // We are always retrieving data for last month
+        $start_month = DATE("m");
+        $start_year = DATE("Y");
+        $last_month_year = ($start_month == 1 ? ($start_year-1) : $start_year);
+        $last_month = ($start_month == 1 ? 12 : ($start_month-1));
+
+        // Calculate an instance_id based on number of months from 2023-01-01
+        return  ($last_month_year-2023)*12 + $last_month;
+
+    }
 }

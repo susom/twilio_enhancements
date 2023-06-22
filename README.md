@@ -37,6 +37,27 @@ Now, when someone responds with a 'STOP' message, your REDCap project will recei
 
 Note: You should be able to apply this to an existing Twilio number used by REDCap with no ill-effect.  It does NOT change the sid or token and does not affect normal REDCap behavior.
 
+## Twilio Administration Functions
+There are 2 Administration functions that this EM manages:
+1. Campaign Status Updates
+2. Retrieval of Twilio costs per month
+
+### Campaign Status Updates
+The function, twilioCampaignStatusManager, will run on a cron job which runs daily or can e invoked using the EM System page TwilioAdmin.
+This function retrieves the Campaigns that are not yet approved from the Twilio Tracker project and retrieves the status of the
+campaigns from Twilio.  If a Campaign has been approved or rejected, the Twilio Tracker record will be updated and an email
+will be sent to redcap-help@lists.stanford.edu.
+
+
+### Finance Updates
+The function, twilioFinanceManager, will run on a cron job every two weeks or can be invoked by the EM System page TwilioAdmin.
+This function will retrieve pricing data from Twilio for each subaccount. It will store the data in a
+new instance of the charges instrument in the Twilio Tracker project.  This function always retrieves data from "LastMonth".
+
+
+
+
 ### Future Plans
 - [ ] Automate parts of the Twilio sub-account creation process based on the Twilio survey
-- [ ] Add API calls to Twilio to retrieve billing and usage information from Twilio sub-accounts
+- [ ] Automate closing subaccounts when they are no longer needed.
+
