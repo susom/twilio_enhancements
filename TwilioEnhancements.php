@@ -291,10 +291,6 @@ class TwilioEnhancements extends AbstractExternalModule
      */
     public function twilioCampaignStatusManager() {
 
-        // Email address to send notification to the Jira support queue
-        $to_email = "redcap-help@lists.stanford.edu";
-        $from_email = "no-reply@stanford.edu";
-
         // Values of the [campaign_status] field in Twilio Tracker
         $verified_status = 1;
         $inprogress_status = 2;
@@ -328,7 +324,6 @@ class TwilioEnhancements extends AbstractExternalModule
                     $this->emDebug("Record " . $oneRecord['record_id'] . " has status of " . $return['campaign_status']);
 
                     // If the Campaign status was verified, update the REDCap Twilio Tracker project
-                    // and send an email to the Jira queue
                     if ($return['campaign_status'] == "VERIFIED") {
                         $updateRecord = [
                             "record_id"             => $oneRecord["record_id"],
@@ -337,12 +332,9 @@ class TwilioEnhancements extends AbstractExternalModule
                             "last_checked"          => DATE("Y-m-d")
                             ];
                         $updateRedcap[] = $updateRecord;
-                        $status = REDCap::email($to_email, $from_email, "Twilio campaign has been VERIFIED!",
-                                    "Twilio campaign was VERIFIED for Twilio Tracker record " . $oneRecord["record_id"]
-                        );
                     } else if ($return['campaign_status'] == 'FAILED') {
 
-                        // If the campaign was rejected, update Twilio Tracker and send email to the Jira queue
+                        // If the campaign was rejected, update Twilio Tracker
                         $updateRecord = [
                             "record_id"             => $oneRecord["record_id"],
                             "campaign_status"       => "$rejected_status",
@@ -350,8 +342,6 @@ class TwilioEnhancements extends AbstractExternalModule
                             "last_checked"          => DATE("Y-m-d")
                         ];
                         $updateRedcap[] = $updateRecord;
-                        $status = REDCap::email($to_email, $from_email, "Twilio campaign has been REJECTED!",
-                            "Twilio campaign was REJECTED for Twilio Tracker record " . $oneRecord["record_id"]);
                     }
                 }
             }
@@ -361,10 +351,6 @@ class TwilioEnhancements extends AbstractExternalModule
                 $status = REDCap::saveData($project_id, 'json', json_encode($updateRedcap));
                 if (!empty($status["errors"])) {
                     $this->emError("Could not update REDCap with current status: " . json_encode($status));
-                    $status = REDCap::email($to_email, $from_email, "Could not update Twilio Tracker project",
-                        "Tried to update the Twilio Tracker project [pid=" . $project_id .
-                        "] with updated Campaign Status but ran into an " .
-                        "error.  Look at Splunk log for more information");
                 }
             }
         }
