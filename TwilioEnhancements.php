@@ -15,23 +15,17 @@ class TwilioEnhancements extends AbstractExternalModule
 {
     use emLoggerTrait;
 
-    public function __construct()
-    {
-        parent::__construct();
-        // Other code to run when object is instantiated
-    }
-
-
     public function redcap_every_page_before_render(int $project_id=null)
     {
         // Check to see if this is a survey page and this message is coming from Twilio with an OptOutType entry
         // If all those three conditions are not met, skip processing
         if (PAGE == 'surveys/index.php' &&
-                Messaging::getIncomingRequestType() == Messaging::PROVIDER_TWILIO && isset($_POST['OptOutType'])) {
+            Messaging::getIncomingRequestType() == Messaging::PROVIDER_TWILIO &&
+            isset($_POST['OptOutType'])) {
 
             // Save current pid so we can replace before we leave
             $old_pid = $_GET['pid'];
-            $this->emDebug("In Twilio Opt-Out processing for project id: " . $this->getProjectId());
+            $this->emDebug("In Twilio Opt-Out processing for project id: " . $this->getProjectId(), $project_id, $old_pid);
 
             if (is_null($this->getProjectId())) {
                 $project_id = $this->findProjectByToPhoneNum($_POST['To']);
@@ -39,15 +33,14 @@ class TwilioEnhancements extends AbstractExternalModule
                     $this->emError("Cannot find the project ID based on the Twilio phone number of ". $_POST['To']);
                     return;
                 }
-                $_GET['pid'] = $project_id;
                 if (empty($this->getProjectId())) {
                     $this->emError("Cannot set the project ID from phone number. Project ID was found as $project_id and phone from POST is ". $_POST['To']);
                     return;
                 }
             } else {
                 $project_id = $this->getProjectId();
-                $_GET['pid'] = $project_id;
             }
+            $_GET['pid'] = $project_id;
 
             $this->emDebug("Project ID before retrieving Project Settings: " . $project_id . ", getProjectId(): " . $this->getProjectId());
 
@@ -97,7 +90,7 @@ class TwilioEnhancements extends AbstractExternalModule
                     $data[$record_id][$opt_out_checkbox_event_id][$opt_out_checkbox . "___1"] = $checkbox_value;
                 }
                 $param = [
-                    "project_id" => $this->getProjectId(),
+                    "project_id" => strval($this->getProjectId()),
                     "overwriteBehavior" => "overwrite",
                     "data" => $data
                 ];
@@ -130,15 +123,26 @@ class TwilioEnhancements extends AbstractExternalModule
 
         $redcap_format = $this->formatNumber($to_phone, "digits");
         $sql = "select project_id from redcap_projects where twilio_from_number = ?";
-
+        $project_ids = [];
         try {
-            $return = db_query($sql, $redcap_format)->fetch_object();
-            $project_id = $return->project_id;
+            $q = $this->query($sql, [$redcap_format]);
+            while ($row = $q->fetch_assoc()) {
+                $project_ids[] = strval($row['project_id']);
+            }
         } catch (\Exception $ex) {
             $this->emError("DB Error: " . json_encode($ex));
-            $project_id = null;
         }
 
+        $cnt = count($project_ids);
+        if ($cnt == 0) {
+            $this->emDebug("No matches found for $to_phone";
+            $project_id = null;
+        } else {
+            if ($cnt > 1) {
+                $this->emDebug("Found more than one project match for $to_phone - using first: " . implode(",", $project_ids));
+            }
+            $project_id = reset($project_ids);
+        }
         return $project_id;
     }
 
