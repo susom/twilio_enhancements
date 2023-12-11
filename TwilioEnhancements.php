@@ -25,7 +25,7 @@ class TwilioEnhancements extends AbstractExternalModule
 
             // Save current pid so we can replace before we leave
             $old_pid = $_GET['pid'];
-            $this->emDebug("In Twilio Opt-Out processing for project id: " . $this->getProjectId(), $project_id, $old_pid);
+            $this->emDebug("In Twilio Opt-Out processing for project id: " . $this->getProjectId(), $project_id, $old_pid, $_POST);
 
             if (is_null($this->getProjectId())) {
                 $project_id = $this->findProjectByToPhoneNum($_POST['To']);
