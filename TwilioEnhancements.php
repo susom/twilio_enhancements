@@ -135,7 +135,7 @@ class TwilioEnhancements extends AbstractExternalModule
 
         $cnt = count($project_ids);
         if ($cnt == 0) {
-            $this->emDebug("No matches found for $to_phone";
+            $this->emDebug("No matches found for $to_phone");
             $project_id = null;
         } else {
             if ($cnt > 1) {
