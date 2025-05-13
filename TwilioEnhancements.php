@@ -3,6 +3,7 @@
 namespace Stanford\TwilioEnhancements;
 
 require_once "emLoggerTrait.php";
+require_once "vendor/autoload.php";
 
 use ExternalModules\AbstractExternalModule;
 use Messaging;
@@ -10,10 +11,15 @@ use GuzzleHttp;
 use GuzzleHttp\Exception\GuzzleException;
 use REDCap;
 use Exception;
+use Twilio\Rest\Client;
 
 class TwilioEnhancements extends AbstractExternalModule
 {
     use emLoggerTrait;
+
+    public $record = null;
+
+    private $TwilioClient;
 
     public function redcap_every_page_before_render(int $project_id=null)
     {
@@ -496,5 +502,98 @@ class TwilioEnhancements extends AbstractExternalModule
         // Calculate an instance_id based on number of months from 2023-01-01
         return  ($last_month_year-2023)*12 + $last_month;
 
+    }
+
+    /**********************************************
+     *********************************************
+     * BELOW FUNCTIONALITY IS REPLICATED ON ENHANCED SMS CONVERSATION EM
+     *********************************************
+     **********************************************/
+    public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance,
+                                       $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id)
+    {
+        switch($action) {
+            case "LookupPhoneNumbers":
+                $phone_number = $payload['phone_number'];
+                $record_id = $payload['record_id'];
+                try{
+                    $line_type_intelligence = $this->lookupPhoneNumber($phone_number);
+                    if(!empty($line_type_intelligence)){
+                        $data[\REDCap::getRecordIdField()]= $record_id;
+                        if(!empty($this->getProjectSetting('phone-carrier-name'))){
+                            $data[$this->getProjectSetting('phone-carrier-name')] = $line_type_intelligence['carrier_name'];
+                        }
+                        if(!empty($this->getProjectSetting('phone-carrier-type'))){
+                            $data[$this->getProjectSetting('phone-carrier-type')] = $line_type_intelligence['type'];
+                        }
+                        $response = \REDCap::saveData($this->getProjectId(), 'json', json_encode(array($data)));
+                        if (!empty($response['errors'])) {
+                            REDCap::logEvent(implode(",", $response['errors']));
+                        }else{
+                            $result = [
+                                "success"=>true,
+                                "carrier_name"=>$line_type_intelligence['carrier_name'],
+                                "carrier_type"=>$line_type_intelligence['type'],
+                            ];
+                        }
+                    }else{
+                        REDCap::logEvent("No line_type_intelligence for phone number $phone_number and record $record_id");
+                    }
+
+                    break;
+                }catch (\Exception $e){
+
+                }
+                break;
+            default:
+                // Action not defined
+                throw new Exception ("Action $action is not defined");
+        }
+
+        // Return is left as php object, is converted to json automatically
+        return $result;
+    }
+
+    public function redcap_survey_page( int $project_id, string $record = NULL, string $instrument, int $event_id, int $group_id = NULL, string $survey_hash, int $response_id = NULL, int $repeat_instance = 1 )
+    {
+        // load phone_lookup page only if user wants to collect the data
+        if($this->getProjectSetting('collect-carrier-info') && $this->getProjectSetting('phone-field-instrument') == $instrument){
+            $this->record = $record;
+            $this->includeFile('pages/phone_lookup.php');
+        }
+    }
+
+    public function includeFile($path)
+    {
+        include_once $path;
+    }
+
+    /**
+     * Perform a phone number lookup using Twilio API.
+     *
+     * @param string $phoneNumber The phone number to lookup (in E.164 format).
+     * @return array|null The lookup data, or null if the lookup fails.
+     */
+    public function lookupPhoneNumber($phoneNumber) {
+        try {
+            $lookup = $this->getTwilioClient()->lookups->v2->phoneNumbers($phoneNumber)
+                ->fetch(["fields" => "line_type_intelligence"]);
+
+            return $lookup->lineTypeIntelligence ?? null;
+        } catch (Exception $e) {
+            $this->module->emError('Twilio Lookup Error: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * @return Client TwilioClient
+     * @throws \Twilio\Exceptions\ConfigurationException
+     */
+    public function getTwilioClient() {
+        if (empty($this->TwilioClient)) {
+            $this->TwilioClient = new Client($this->getProjectSetting('twilio-sid'), $this->getProjectSetting('twilio-token'));
+        }
+        return $this->TwilioClient;
     }
 }
