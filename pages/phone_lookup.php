@@ -14,7 +14,7 @@ if (!empty($init_method)) $cmds[] = "module.afterRender(module." . $init_method 
 <script>
     $(function() { <?php echo implode(";\n", $cmds) ?> })
 </script>
-?>
+
 
 
 <script>
