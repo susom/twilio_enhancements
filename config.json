@@ -117,6 +117,12 @@
             }
         },
         {
+            "key": "phone-field-instrument",
+            "name": "Select the instrument which has the phone field.",
+            "required": true,
+            "type": "form-list"
+        },
+        {
             "key": "phone-carrier-name",
             "name": "<b>Collect Carrier Name</b><br><i>(optional) If Specified the module will save phone number carrier name to this field</i> .",
             "required": true,

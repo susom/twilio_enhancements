@@ -520,10 +520,10 @@ class TwilioEnhancements extends AbstractExternalModule
                     $line_type_intelligence = $this->lookupPhoneNumber($phone_number);
                     if(!empty($line_type_intelligence)){
                         $data[\REDCap::getRecordIdField()]= $record_id;
-                        if($this->getProjectSetting('phone-carrier-name') && $this->getProjectSetting('phone-carrier-name') != ''){
+                        if(!empty($this->getProjectSetting('phone-carrier-name'))){
                             $data[$this->getProjectSetting('phone-carrier-name')] = $line_type_intelligence['carrier_name'];
                         }
-                        if($this->getProjectSetting('phone-carrier-type') && $this->getProjectSetting('phone-carrier-type') != ''){
+                        if(!empty($this->getProjectSetting('phone-carrier-type'))){
                             $data[$this->getProjectSetting('phone-carrier-type')] = $line_type_intelligence['type'];
                         }
                         $response = \REDCap::saveData($this->getProjectId(), 'json', json_encode(array($data)));
@@ -557,7 +557,7 @@ class TwilioEnhancements extends AbstractExternalModule
     public function redcap_survey_page( int $project_id, string $record = NULL, string $instrument, int $event_id, int $group_id = NULL, string $survey_hash, int $response_id = NULL, int $repeat_instance = 1 )
     {
         // load phone_lookup page only if user wants to collect the data
-        if($this->getProjectSetting('collect-carrier-info')){
+        if($this->getProjectSetting('collect-carrier-info') && $this->getProjectSetting('phone-field-instrument') == $instrument){
             $this->record = $record;
             $this->includeFile('pages/phone_lookup.php');
         }
