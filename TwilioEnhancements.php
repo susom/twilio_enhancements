@@ -520,6 +520,9 @@ class TwilioEnhancements extends AbstractExternalModule
                     $line_type_intelligence = $this->lookupPhoneNumber($phone_number);
                     if(!empty($line_type_intelligence)){
                         $data[\REDCap::getRecordIdField()]= $record_id;
+                        if(!empty($this->getProjectSetting('phone-carrier-fields-event-id'))){
+                            $data['redcap_event_name'] = $this->getProject()->getUniqueEventName($this->getProjectSetting('phone-carrier-fields-event-id'));
+                        }
                         if(!empty($this->getProjectSetting('phone-carrier-name'))){
                             $data[$this->getProjectSetting('phone-carrier-name')] = $line_type_intelligence['carrier_name'];
                         }
