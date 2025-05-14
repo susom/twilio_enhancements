@@ -557,7 +557,7 @@ class TwilioEnhancements extends AbstractExternalModule
         return $result;
     }
 
-    public function redcap_survey_page( int $project_id, string $record = NULL, string $instrument, int $event_id, int $group_id = NULL, string $survey_hash, int $response_id = NULL, int $repeat_instance = 1 )
+    public function redcap_survey_page(  $project_id,  $record = NULL,  $instrument,  $event_id,  $group_id = NULL,  $survey_hash,  $response_id = NULL,  $repeat_instance = 1 )
     {
         // load phone_lookup page only if user wants to collect the data
         if($this->getProjectSetting('collect-carrier-info') && $this->getProjectSetting('phone-field-instrument') == $instrument){
