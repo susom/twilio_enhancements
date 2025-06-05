@@ -42,7 +42,8 @@
     },
 
     "no-auth-pages": [
-        "SetProjectContext"
+        "SetProjectContext",
+        "pages/phone_lookup_cron"
     ],
 
     "project-settings": [
@@ -156,6 +157,17 @@
             }
         },
         {
+            "key": "phone-carrier-trigger-logic",
+            "name": "<b>Carrier Information Logic</b><br><i>Logic to make API call and save carrier information.</i> .",
+            "required": false,
+            "type": "textarea",
+            "branchingLogic": {
+                "field": "collect-carrier-info",
+                "op": "=",
+                "value": "true"
+            }
+        },
+        {
             "key": "enable-project-debug-logging",
             "name": "<b>Enable Debug Logging</b><br><i>(optional)</i> Requires installation and configuration of emLogger",
             "required": false,
@@ -198,6 +210,13 @@
             "method": "twilioFinanceManager",
             "cron_frequency": 1209600,
             "cron_max_run_time": 18000
+        },
+        {
+            "cron_name": "twilio_carrier_lookup",
+            "cron_description": "This cron runs every 5 minutes and pulls records without Carrier information, lookup Carrier name and type from Twilio API.",
+            "method": "lookupPhoneNumberCron",
+            "cron_frequency": 300,
+            "cron_max_run_time": 3600
         }
     ],
 

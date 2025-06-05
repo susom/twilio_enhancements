@@ -6,6 +6,7 @@ require_once "emLoggerTrait.php";
 require_once "vendor/autoload.php";
 
 use ExternalModules\AbstractExternalModule;
+use ExternalModules\ExternalModules;
 use Messaging;
 use GuzzleHttp;
 use GuzzleHttp\Exception\GuzzleException;
@@ -251,7 +252,7 @@ class TwilioEnhancements extends AbstractExternalModule
             }
             $output = "+" . $output;
         } elseif ($type == "redcap") {
-            if (strlen($digits) === 11 && left($digits, 1,) == "1") {
+            if (strlen($digits) === 11 && left($digits, 1) == "1") {
                 // 16503803405 => 6503803405
                 $digits = mid($digits, 2, 10);
             }
@@ -262,7 +263,7 @@ class TwilioEnhancements extends AbstractExternalModule
                 //$output = $digits;
             }
         } elseif ($type == "dashes") {
-            if (strlen($digits) === 11 && left($digits, 1,) == "1") {
+            if (strlen($digits) === 11 && left($digits, 1) == "1") {
                 // 16503803405 => 6503803405
                 $digits = mid($digits, 2, 10);
             }
@@ -557,12 +558,59 @@ class TwilioEnhancements extends AbstractExternalModule
         return $result;
     }
 
-    public function redcap_survey_page(  $project_id,  $record = NULL,  $instrument,  $event_id,  $group_id = NULL,  $survey_hash,  $response_id = NULL,  $repeat_instance = 1 )
+    public function lookupPhoneNumberCron(){
+        $enabled = ExternalModules::getEnabledProjects($this->PREFIX);
+        $url = $this->getUrl('pages/phone_lookup_cron', true, true);
+        $client = new \GuzzleHttp\Client;
+        while ($row = $enabled->fetch_assoc()) {
+            $pid = $row['project_id'];
+            $res = $client->request('GET', $url  . '&NOAUTH&pid='. $pid);
+            $body = json_decode($res->getBody(), TRUE);
+        }
+    }
+    public function twilioCarrierLookup()
     {
-        // load phone_lookup page only if user wants to collect the data
-        if($this->getProjectSetting('collect-carrier-info') && $this->getProjectSetting('phone-field-instrument') == $instrument){
-            $this->record = $record;
-            $this->includeFile('pages/phone_lookup.php');
+        try{
+            $phone_field = $this->getProjectSetting('phone-field');
+            $phone_event = $this->getProjectSetting('phone-field-event-id');
+            $trigger_logic = $this->getProjectSetting('phone-carrier-trigger-logic');
+            $params = [
+                'project_id' => $this->getProjectId(),
+            ];
+            $records = \REDCap::getData($params);
+            foreach ($records as $recordId => $temp) {
+                if(REDCap::evaluateLogic($trigger_logic, $this->getProjectId(), $recordId)) {
+
+                    $phone_number = $temp[$phone_event][$phone_field];
+                    $pattern = '/^(\+1\s?)?(\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}$/';
+                    if (!empty($phone_number) and preg_match($pattern, $phone_number)) {
+                        $line_type_intelligence = $this->lookupPhoneNumber($phone_number);
+                        if (!empty($line_type_intelligence)) {
+                            $data[\REDCap::getRecordIdField()] = $recordId;
+                            if (!empty($this->getProjectSetting('phone-carrier-fields-event-id'))) {
+                                $data['redcap_event_name'] = \REDCap::getEventNames(true, true, $this->getProjectSetting('phone-carrier-fields-event-id'));
+                            }
+                            if (!empty($this->getProjectSetting('phone-carrier-name'))) {
+                                $data[$this->getProjectSetting('phone-carrier-name')] = $line_type_intelligence['carrier_name'];
+                            }
+                            if (!empty($this->getProjectSetting('phone-carrier-type'))) {
+                                $data[$this->getProjectSetting('phone-carrier-type')] = $line_type_intelligence['type'];
+                            }
+                            $response = \REDCap::saveData($this->getProjectId(), 'json', json_encode(array($data)));
+                            if (!empty($response['errors'])) {
+                                REDCap::logEvent(implode(",", $response['errors']));
+                            } else {
+                                REDCap::logEvent("Carrier information saved for phone number $phone_number and record $recordId");
+                            }
+                        } else {
+                            REDCap::logEvent("No line_type_intelligence for phone number $phone_number and record $recordId");
+                        }
+                    }
+                }
+            }
+
+        }catch (\Exception $e){
+            REDCap::logEvent('EXCEPTION: ' , $e->getMessage());
         }
     }
 
