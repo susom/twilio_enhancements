@@ -579,7 +579,7 @@ class TwilioEnhancements extends AbstractExternalModule
             ];
             $records = \REDCap::getData($params);
             foreach ($records as $recordId => $temp) {
-                if(REDCap::evaluateLogic($trigger_logic, $this->getProjectId(), $recordId)) {
+                if($this->getProjectSetting('phone-carrier-name') != '' AND $trigger_logic != '' AND REDCap::evaluateLogic($trigger_logic, $this->getProjectId(), $recordId)) {
 
                     $phone_number = $temp[$phone_event][$phone_field];
                     $pattern = '/^(\+1\s?)?(\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}$/';
