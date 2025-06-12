@@ -22,7 +22,7 @@ class TwilioEnhancements extends AbstractExternalModule
 
     private $TwilioClient;
 
-    public function redcap_every_page_before_render(int $project_id=null)
+    public function redcap_every_page_before_render(int $project_id = null)
     {
         // Check to see if this is a survey page and this message is coming from Twilio with an OptOutType entry
         // If all those three conditions are not met, skip processing
@@ -37,11 +37,11 @@ class TwilioEnhancements extends AbstractExternalModule
             if (is_null($this->getProjectId())) {
                 $project_id = $this->findProjectByToPhoneNum($_POST['To']);
                 if (empty($project_id)) {
-                    $this->emError("Cannot find the project ID based on the Twilio phone number of ". $_POST['To']);
+                    $this->emError("Cannot find the project ID based on the Twilio phone number of " . $_POST['To']);
                     return;
                 }
                 if (empty($this->getProjectId())) {
-                    $this->emError("Cannot set the project ID from phone number. Project ID was found as $project_id and phone from POST is ". $_POST['To']);
+                    $this->emError("Cannot set the project ID from phone number. Project ID was found as $project_id and phone from POST is " . $_POST['To']);
                     return;
                 }
             } else {
@@ -86,7 +86,7 @@ class TwilioEnhancements extends AbstractExternalModule
 
             // Retrieve the records with this opt-out/opt-in phone number
             $q = $this->retrieveRecords($record_id_field, $is_longitudinal, $event_name,
-                                        $phone_field, $phone_field_event_id, $from_number, $from_number_dashes);
+                $phone_field, $phone_field_event_id, $from_number, $from_number_dashes);
 
             // Save the opt-out/opt-in status for each record and conditionally send email
             global $project_contact_email;
@@ -107,7 +107,7 @@ class TwilioEnhancements extends AbstractExternalModule
 
                     // Even if there is an error, send a message that a person is changing their opt-out status
                     if (!empty($email)) {
-                        REDCap::email($email,$project_contact_email,'Twilio Enhancements: Opt-Out Change ERROR (#' . $record_id . ')',
+                        REDCap::email($email, $project_contact_email, 'Twilio Enhancements: Opt-Out Change ERROR (#' . $record_id . ')',
                             "Record $record_id from project " . $this->getProjectId() . " received an opt-out status update to $opt_out_type but REDCap could not save the new status");
                     }
 
@@ -126,7 +126,8 @@ class TwilioEnhancements extends AbstractExternalModule
     }
 
 
-    private function findProjectByToPhoneNum($to_phone) {
+    private function findProjectByToPhoneNum($to_phone)
+    {
 
         $redcap_format = $this->formatNumber($to_phone, "digits");
         $sql = "select project_id from redcap_projects where twilio_from_number = ?";
@@ -165,7 +166,8 @@ class TwilioEnhancements extends AbstractExternalModule
      * @return mixed|null
      */
     private function retrieveRecords($record_id_field, $is_longitudinal, $event_name,
-                                     $phone_field, $phone_field_event_id, $from_number, $from_number_dashes) {
+                                     $phone_field, $phone_field_event_id, $from_number, $from_number_dashes)
+    {
 
         // If this is longitudinal, append event name to retrieve the phone number field
         $event_prefix = $is_longitudinal ? "[" . $event_name . "]" : "";
@@ -173,7 +175,7 @@ class TwilioEnhancements extends AbstractExternalModule
             "project_id" => $this->getProjectId(),
             "fields" => ["$record_id_field"],
             "filterLogic" => $event_prefix . "[" . $phone_field . "] = '$from_number' or " .
-                             $event_prefix . "[" . $phone_field . "] = '$from_number_dashes'"
+                $event_prefix . "[" . $phone_field . "] = '$from_number_dashes'"
         ];
 
         if ($is_longitudinal) {
@@ -188,10 +190,10 @@ class TwilioEnhancements extends AbstractExternalModule
             return null;
         } elseif ($record_count > 1) {
             // More than one hit - just taking first
-            $this->emDebug("More than one record was found with $from_number, setting them all to opt-out: " . implode(",",array_keys($q)));
+            $this->emDebug("More than one record was found with $from_number, setting them all to opt-out: " . implode(",", array_keys($q)));
             REDCap::logEvent(
                 "Multiple possible matches for inbound opt-in/opt-out - will opt-out/opt-in ALL of them",
-                "Record list: " . implode(",",array_keys($q)),
+                "Record list: " . implode(",", array_keys($q)),
                 "", null, null, $this->getProjectId());
             return $q;
         } else {
@@ -207,7 +209,8 @@ class TwilioEnhancements extends AbstractExternalModule
      * @return array|null[]
      * @throws GuzzleHttp\Exception\GuzzleException
      */
-    private function retrieveProjectSettings($phone_field_event_id) {
+    private function retrieveProjectSettings($phone_field_event_id)
+    {
 
         try {
             $proj_context_url = $this->getUrl('SetProjectContext.php?pid=' . $this->getProjectId(), true, true);
@@ -220,7 +223,7 @@ class TwilioEnhancements extends AbstractExternalModule
                 ]
             );
             $return = json_decode($res->getBody()->getContents(), true);
-            $event_name =  ($return['isLongitudinal'] ? $return['events']["$phone_field_event_id"] : "");
+            $event_name = ($return['isLongitudinal'] ? $return['events']["$phone_field_event_id"] : "");
 
             return [$return['pk_field'], $return['isLongitudinal'], $event_name];
 
@@ -300,7 +303,8 @@ class TwilioEnhancements extends AbstractExternalModule
      *
      * @return void
      */
-    public function twilioCampaignStatusManager() {
+    public function twilioCampaignStatusManager()
+    {
 
         // Values of the [campaign_status] field in Twilio Tracker
         $verified_status = 1;
@@ -325,7 +329,7 @@ class TwilioEnhancements extends AbstractExternalModule
 
             // Loop over each record and retrieve status from Twilio
             $updateRedcap = [];
-            foreach($return as $oneRecord) {
+            foreach ($return as $oneRecord) {
 
                 $url = "https://messaging.twilio.com/v1/Services/" . $oneRecord["twilio_campaign_sid"] . "/Compliance/Usa2p/" . $checkCampaignStatusSID;
                 $basic_auth_user = $oneRecord["twilio_acct_sid"] . ":" . $oneRecord["twilio_auth_token"];
@@ -337,20 +341,20 @@ class TwilioEnhancements extends AbstractExternalModule
                     // If the Campaign status was verified, update the REDCap Twilio Tracker project
                     if ($return['campaign_status'] == "VERIFIED") {
                         $updateRecord = [
-                            "record_id"             => $oneRecord["record_id"],
-                            "campaign_status"       => "$verified_status",
-                            "campaign_verified"     => "1",
-                            "last_checked"          => DATE("Y-m-d")
-                            ];
+                            "record_id" => $oneRecord["record_id"],
+                            "campaign_status" => "$verified_status",
+                            "campaign_verified" => "1",
+                            "last_checked" => DATE("Y-m-d")
+                        ];
                         $updateRedcap[] = $updateRecord;
                     } else if ($return['campaign_status'] == 'FAILED') {
 
                         // If the campaign was rejected, update Twilio Tracker
                         $updateRecord = [
-                            "record_id"             => $oneRecord["record_id"],
-                            "campaign_status"       => "$rejected_status",
-                            "campaign_verified"     => "0",
-                            "last_checked"          => DATE("Y-m-d")
+                            "record_id" => $oneRecord["record_id"],
+                            "campaign_status" => "$rejected_status",
+                            "campaign_verified" => "0",
+                            "last_checked" => DATE("Y-m-d")
                         ];
                         $updateRedcap[] = $updateRecord;
                     }
@@ -376,19 +380,20 @@ class TwilioEnhancements extends AbstractExternalModule
      * @return void
      * @throws Exception
      */
-    public function twilioFinanceManager() {
+    public function twilioFinanceManager()
+    {
         /**
-             Each category for billing needs a separate API call.  Right now, we will retrieve
-              * totalcost - all messaging and phone costs (does not include campaign fee)
-              * sms - messaging count for both incoming and outgoing
-              * mms - messaging count for both incoming and outgoing
-              * campaign charge - monthly fee for an approved campaign
+         * Each category for billing needs a separate API call.  Right now, we will retrieve
+         * totalcost - all messaging and phone costs (does not include campaign fee)
+         * sms - messaging count for both incoming and outgoing
+         * mms - messaging count for both incoming and outgoing
+         * campaign charge - monthly fee for an approved campaign
          */
         $categories = [
-                "twilio_charge_amount"      => "totalprice",
-                "twilio_sms_num_texts"      => "sms",
-                "twilio_mms_num_texts"      => "mms",
-                "twilio_campaign_amount"    => "a2p-registration-fees"
+            "twilio_charge_amount" => "totalprice",
+            "twilio_sms_num_texts" => "sms",
+            "twilio_mms_num_texts" => "mms",
+            "twilio_campaign_amount" => "a2p-registration-fees"
         ];
 
         // Retrieve pid of twilio tracker project
@@ -413,7 +418,7 @@ class TwilioEnhancements extends AbstractExternalModule
             foreach ($records as $oneRecord) {
 
                 // We are always querying for last month
-                $twilio_url = $twilio_uri . "/Accounts/" . $oneRecord['twilio_acct_sid'].
+                $twilio_url = $twilio_uri . "/Accounts/" . $oneRecord['twilio_acct_sid'] .
                     "/Usage/Records/LastMonth?Category=";
                 //$twilio_url = $twilio_uri . "/Accounts/" . $oneRecord['twilio_acct_sid'].
                 //    "/Usage/Records?StartDate=".$start_date."&EndDate=".$end_date."&Category=";
@@ -433,12 +438,12 @@ class TwilioEnhancements extends AbstractExternalModule
 
                     $recordCharges["twilio_charge_date"] = current($twilio_response->UsageRecords->UsageRecord[0]->StartDate);
                     $this->emDebug("For category $cat, price/count is $recordCharges[$field_name] for month starting date of "
-                                . $recordCharges["twilio_charge_date"] . " for record " . $oneRecord['record_id']);
+                        . $recordCharges["twilio_charge_date"] . " for record " . $oneRecord['record_id']);
                 }
 
                 // Only save this month if there were some charges
                 if ($recordCharges['twilio_charge_amount'] <> 0
-                        or $recordCharges['twilio_campaign_amount'] <> 0) {
+                    or $recordCharges['twilio_campaign_amount'] <> 0) {
                     $recordCharges['record_id'] = $oneRecord['record_id'];
                     $recordCharges['redcap_repeat_instance'] = $instance_id;
                     $recordCharges['redcap_repeat_instrument'] = 'charges';
@@ -466,13 +471,14 @@ class TwilioEnhancements extends AbstractExternalModule
      * @param $filter
      * @return mixed
      */
-    private function getREDCapRecordsToProcess($project_id, $fields, $filter) {
+    private function getREDCapRecordsToProcess($project_id, $fields, $filter)
+    {
 
         $params = [
-            "project_id"        => $project_id,
-            "return_format"     => "json",
-            "fields"            => $fields,
-            "filterLogic"       => $filter
+            "project_id" => $project_id,
+            "return_format" => "json",
+            "fields" => $fields,
+            "filterLogic" => $filter
         ];
         $return = REDCap::getData($params);
         if (empty($return)) {
@@ -492,16 +498,17 @@ class TwilioEnhancements extends AbstractExternalModule
      * @param $start_date
      * @return float|int
      */
-    private function calcInstanceId() {
+    private function calcInstanceId()
+    {
 
         // We are always retrieving data for last month
         $start_month = DATE("m");
         $start_year = DATE("Y");
-        $last_month_year = ($start_month == 1 ? ($start_year-1) : $start_year);
-        $last_month = ($start_month == 1 ? 12 : ($start_month-1));
+        $last_month_year = ($start_month == 1 ? ($start_year - 1) : $start_year);
+        $last_month = ($start_month == 1 ? 12 : ($start_month - 1));
 
         // Calculate an instance_id based on number of months from 2023-01-01
-        return  ($last_month_year-2023)*12 + $last_month;
+        return ($last_month_year - 2023) * 12 + $last_month;
 
     }
 
@@ -513,39 +520,39 @@ class TwilioEnhancements extends AbstractExternalModule
     public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance,
                                        $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id)
     {
-        switch($action) {
+        switch ($action) {
             case "LookupPhoneNumbers":
                 $phone_number = $payload['phone_number'];
                 $record_id = $payload['record_id'];
-                try{
+                try {
                     $line_type_intelligence = $this->lookupPhoneNumber($phone_number);
-                    if(!empty($line_type_intelligence)){
-                        $data[\REDCap::getRecordIdField()]= $record_id;
-                        if(!empty($this->getProjectSetting('phone-carrier-fields-event-id'))){
+                    if (!empty($line_type_intelligence)) {
+                        $data[\REDCap::getRecordIdField()] = $record_id;
+                        if (!empty($this->getProjectSetting('phone-carrier-fields-event-id'))) {
                             $data['redcap_event_name'] = \REDCap::getEventNames(true, true, $this->getProjectSetting('phone-carrier-fields-event-id'));
                         }
-                        if(!empty($this->getProjectSetting('phone-carrier-name'))){
+                        if (!empty($this->getProjectSetting('phone-carrier-name'))) {
                             $data[$this->getProjectSetting('phone-carrier-name')] = $line_type_intelligence['carrier_name'];
                         }
-                        if(!empty($this->getProjectSetting('phone-carrier-type'))){
+                        if (!empty($this->getProjectSetting('phone-carrier-type'))) {
                             $data[$this->getProjectSetting('phone-carrier-type')] = $line_type_intelligence['type'];
                         }
                         $response = \REDCap::saveData($this->getProjectId(), 'json', json_encode(array($data)));
                         if (!empty($response['errors'])) {
                             REDCap::logEvent(implode(",", $response['errors']));
-                        }else{
+                        } else {
                             $result = [
-                                "success"=>true,
-                                "carrier_name"=>$line_type_intelligence['carrier_name'],
-                                "carrier_type"=>$line_type_intelligence['type'],
+                                "success" => true,
+                                "carrier_name" => $line_type_intelligence['carrier_name'],
+                                "carrier_type" => $line_type_intelligence['type'],
                             ];
                         }
-                    }else{
+                    } else {
                         REDCap::logEvent("No line_type_intelligence for phone number $phone_number and record $record_id");
                     }
 
                     break;
-                }catch (\Exception $e){
+                } catch (\Exception $e) {
 
                 }
                 break;
@@ -558,59 +565,62 @@ class TwilioEnhancements extends AbstractExternalModule
         return $result;
     }
 
-    public function lookupPhoneNumberCron(){
+    public function lookupPhoneNumberCron()
+    {
         $enabled = ExternalModules::getEnabledProjects($this->PREFIX);
         $url = $this->getUrl('pages/phone_lookup_cron', true, true);
         $client = new \GuzzleHttp\Client;
         while ($row = $enabled->fetch_assoc()) {
             $pid = $row['project_id'];
-            $res = $client->request('GET', $url  . '&NOAUTH&pid='. $pid);
+            $res = $client->request('GET', $url . '&NOAUTH&pid=' . $pid);
             $body = json_decode($res->getBody(), TRUE);
         }
     }
+
     public function twilioCarrierLookup()
     {
-        try{
-            $phone_field = $this->getProjectSetting('phone-field');
-            $phone_event = $this->getProjectSetting('phone-field-event-id');
-            $trigger_logic = $this->getProjectSetting('phone-carrier-trigger-logic');
-            $params = [
-                'project_id' => $this->getProjectId(),
-            ];
-            $records = \REDCap::getData($params);
-            foreach ($records as $recordId => $temp) {
-                if($this->getProjectSetting('phone-carrier-name') != '' AND $trigger_logic != '' AND REDCap::evaluateLogic($trigger_logic, $this->getProjectId(), $recordId)) {
+        try {
+            if ($this->getProjectSetting('collect-carrier-info')) {
+                $phone_field = $this->getProjectSetting('phone-field');
+                $phone_event = $this->getProjectSetting('phone-field-event-id');
+                $trigger_logic = $this->getProjectSetting('phone-carrier-trigger-logic');
+                $params = [
+                    'project_id' => $this->getProjectId(),
+                ];
+                $records = \REDCap::getData($params);
+                foreach ($records as $recordId => $temp) {
+                    if ($this->getProjectSetting('phone-carrier-name') != '' and $trigger_logic != '' and REDCap::evaluateLogic($trigger_logic, $this->getProjectId(), $recordId)) {
 
-                    $phone_number = $temp[$phone_event][$phone_field];
-                    $pattern = '/^(\+1\s?)?(\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}$/';
-                    if (!empty($phone_number) and preg_match($pattern, $phone_number)) {
-                        $line_type_intelligence = $this->lookupPhoneNumber($phone_number);
-                        if (!empty($line_type_intelligence)) {
-                            $data[\REDCap::getRecordIdField()] = $recordId;
-                            if (!empty($this->getProjectSetting('phone-carrier-fields-event-id'))) {
-                                $data['redcap_event_name'] = \REDCap::getEventNames(true, true, $this->getProjectSetting('phone-carrier-fields-event-id'));
-                            }
-                            if (!empty($this->getProjectSetting('phone-carrier-name'))) {
-                                $data[$this->getProjectSetting('phone-carrier-name')] = $line_type_intelligence['carrier_name'];
-                            }
-                            if (!empty($this->getProjectSetting('phone-carrier-type'))) {
-                                $data[$this->getProjectSetting('phone-carrier-type')] = $line_type_intelligence['type'];
-                            }
-                            $response = \REDCap::saveData($this->getProjectId(), 'json', json_encode(array($data)));
-                            if (!empty($response['errors'])) {
-                                REDCap::logEvent(implode(",", $response['errors']));
+                        $phone_number = $temp[$phone_event][$phone_field];
+                        $pattern = '/^(\+1\s?)?(\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}$/';
+                        if (!empty($phone_number) and preg_match($pattern, $phone_number)) {
+                            $line_type_intelligence = $this->lookupPhoneNumber($phone_number);
+                            if (!empty($line_type_intelligence)) {
+                                $data[\REDCap::getRecordIdField()] = $recordId;
+                                if (!empty($this->getProjectSetting('phone-carrier-fields-event-id'))) {
+                                    $data['redcap_event_name'] = \REDCap::getEventNames(true, true, $this->getProjectSetting('phone-carrier-fields-event-id'));
+                                }
+                                if (!empty($this->getProjectSetting('phone-carrier-name'))) {
+                                    $data[$this->getProjectSetting('phone-carrier-name')] = $line_type_intelligence['carrier_name'];
+                                }
+                                if (!empty($this->getProjectSetting('phone-carrier-type'))) {
+                                    $data[$this->getProjectSetting('phone-carrier-type')] = $line_type_intelligence['type'];
+                                }
+                                $response = \REDCap::saveData($this->getProjectId(), 'json', json_encode(array($data)));
+                                if (!empty($response['errors'])) {
+                                    REDCap::logEvent(implode(",", $response['errors']));
+                                } else {
+                                    REDCap::logEvent("Carrier information saved for phone number $phone_number and record $recordId");
+                                }
                             } else {
-                                REDCap::logEvent("Carrier information saved for phone number $phone_number and record $recordId");
+                                REDCap::logEvent("No line_type_intelligence for phone number $phone_number and record $recordId");
                             }
-                        } else {
-                            REDCap::logEvent("No line_type_intelligence for phone number $phone_number and record $recordId");
                         }
                     }
                 }
             }
-
-        }catch (\Exception $e){
-            REDCap::logEvent('EXCEPTION: ' , $e->getMessage());
+        } catch (\Exception $e) {
+            REDCap::logEvent('EXCEPTION: ', $e->getMessage());
         }
     }
 
@@ -625,7 +635,8 @@ class TwilioEnhancements extends AbstractExternalModule
      * @param string $phoneNumber The phone number to lookup (in E.164 format).
      * @return array|null The lookup data, or null if the lookup fails.
      */
-    public function lookupPhoneNumber($phoneNumber) {
+    public function lookupPhoneNumber($phoneNumber)
+    {
         try {
             $lookup = $this->getTwilioClient()->lookups->v2->phoneNumbers($phoneNumber)
                 ->fetch(["fields" => "line_type_intelligence"]);
@@ -641,7 +652,8 @@ class TwilioEnhancements extends AbstractExternalModule
      * @return Client TwilioClient
      * @throws \Twilio\Exceptions\ConfigurationException
      */
-    public function getTwilioClient() {
+    public function getTwilioClient()
+    {
         if (empty($this->TwilioClient)) {
             $this->TwilioClient = new Client($this->getProjectSetting('twilio-sid'), $this->getProjectSetting('twilio-token'));
         }
